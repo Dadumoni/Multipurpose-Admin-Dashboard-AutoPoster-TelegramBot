@@ -63,9 +63,9 @@ Multipurpose-Admin-Dashboard-AutoPoster-TelegramBot/
    | Variable | Value / Description |
    |---|---|
    | `TELEGRAM_BOT_TOKEN` | Your Telegram Bot Token from `@BotFather` |
-   | `SUPABASE_URL` | Your Supabase Project URL (`https://aswphdoqnayyacivxebf.supabase.co`) |
+   | `SUPABASE_URL` | Your Supabase Project URL (`https://your-project-id.supabase.co`) |
    | `SUPABASE_KEY` | Your Supabase `service_role` or `anon` key |
-   | `STREAMING_URL` | Video streaming base URL (e.g. `https://viralhub.space`) |
+   | `STREAMING_URL` | Video streaming base URL (e.g. `https://your-domain.com`) |
 5. Click **Create Web Service**.
 6. Once deployed, Render will provide a public URL like:
    `https://autoposter-telegram-bot.onrender.com`
