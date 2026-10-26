@@ -9,9 +9,8 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
-# Table Names
-TABLE_CHANNELS = "autoposterbot_db"
-TABLE_SETTINGS = "autoposterbot_settings"
+# Table Names (Single table for bot channels and settings)
+TABLE_BOT = "autoposterbot_db"
 TABLE_VIDEOS = "viralhub_db"
 
 
@@ -20,13 +19,14 @@ TABLE_VIDEOS = "viralhub_db"
 # -------------------------------------------------------------
 
 def get_all_channels() -> List[Dict[str, Any]]:
-    """Fetches all registered channels from autoposterbot_db."""
+    """Fetches all registered channels from autoposterbot_db (excluding global_settings)."""
     if not supabase:
         return []
     try:
         res = (
-            supabase.table(TABLE_CHANNELS)
+            supabase.table(TABLE_BOT)
             .select("*")
+            .neq("id", "global_settings")
             .order("created_at", desc=False)
             .execute()
         )
@@ -42,7 +42,7 @@ def get_channel(chat_id: int) -> Optional[Dict[str, Any]]:
         return None
     try:
         res = (
-            supabase.table(TABLE_CHANNELS)
+            supabase.table(TABLE_BOT)
             .select("*")
             .eq("chat_id", chat_id)
             .maybe_single()
@@ -74,7 +74,7 @@ def add_channel(chat_id: int, channel_name: str, channel_username: Optional[str]
         if existing:
             # Re-activate if was paused or update title
             res = (
-                supabase.table(TABLE_CHANNELS)
+                supabase.table(TABLE_BOT)
                 .update({
                     "channel_name": channel_name or existing.get("channel_name"),
                     "status": "active",
@@ -91,7 +91,7 @@ def add_channel(chat_id: int, channel_name: str, channel_username: Optional[str]
         payload["posted_ids"] = []
         payload["created_at"] = datetime.now(timezone.utc).isoformat()
 
-        res = supabase.table(TABLE_CHANNELS).insert(payload).execute()
+        res = supabase.table(TABLE_BOT).insert(payload).execute()
         return res.data[0] if res.data else payload
     except Exception as e:
         logger.error(f"[Database] Failed to add channel {chat_id}: {e}")
@@ -103,7 +103,7 @@ def remove_channel(chat_id: int) -> bool:
     if not supabase:
         return False
     try:
-        res = supabase.table(TABLE_CHANNELS).delete().eq("chat_id", chat_id).execute()
+        res = supabase.table(TABLE_BOT).delete().eq("chat_id", chat_id).execute()
         return bool(res.data)
     except Exception as e:
         logger.error(f"[Database] Failed to remove channel {chat_id}: {e}")
@@ -116,7 +116,7 @@ def toggle_channel_status(chat_id: int, status: str) -> bool:
         return False
     try:
         res = (
-            supabase.table(TABLE_CHANNELS)
+            supabase.table(TABLE_BOT)
             .update({
                 "status": status,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -168,7 +168,7 @@ def update_channel_stats(
         else:
             update_data["last_error"] = str(error_msg or "Unknown error")
 
-        res = supabase.table(TABLE_CHANNELS).update(update_data).eq("chat_id", chat_id).execute()
+        res = supabase.table(TABLE_BOT).update(update_data).eq("chat_id", chat_id).execute()
         return bool(res.data)
     except Exception as e:
         logger.error(f"[Database] Failed to update stats for channel {chat_id}: {e}")
@@ -181,7 +181,7 @@ def reset_channel_posted_ids(chat_id: int) -> bool:
         return False
     try:
         res = (
-            supabase.table(TABLE_CHANNELS)
+            supabase.table(TABLE_BOT)
             .update({
                 "posted_ids": [],
                 "updated_at": datetime.now(timezone.utc).isoformat(),
@@ -197,13 +197,15 @@ def reset_channel_posted_ids(chat_id: int) -> bool:
 
 
 # -------------------------------------------------------------
-# 2. BOT SETTINGS & STATE (autoposterbot_settings)
+# 2. BOT SETTINGS & STATE (Stored in autoposterbot_db id='global_settings')
 # -------------------------------------------------------------
 
 def get_bot_settings() -> Dict[str, Any]:
-    """Retrieves global bot settings from autoposterbot_settings."""
+    """Retrieves global bot settings from autoposterbot_db where id='global_settings'."""
     default_settings = {
         "id": "global_settings",
+        "channel_name": "_config",
+        "status": "active",
         "is_running": True,
         "posts_per_hour": 1,
         "custom_text": "",
@@ -213,7 +215,7 @@ def get_bot_settings() -> Dict[str, Any]:
         return default_settings
     try:
         res = (
-            supabase.table(TABLE_SETTINGS)
+            supabase.table(TABLE_BOT)
             .select("*")
             .eq("id", "global_settings")
             .maybe_single()
@@ -222,7 +224,7 @@ def get_bot_settings() -> Dict[str, Any]:
         if res.data:
             return res.data
         # If not present yet, create default row
-        supabase.table(TABLE_SETTINGS).insert(default_settings).execute()
+        supabase.table(TABLE_BOT).insert(default_settings).execute()
         return default_settings
     except Exception as e:
         logger.error(f"[Database] Error reading bot settings: {e}")
@@ -230,14 +232,14 @@ def get_bot_settings() -> Dict[str, Any]:
 
 
 def update_bot_settings(updates: Dict[str, Any]) -> Dict[str, Any]:
-    """Updates bot configuration (e.g. is_running, posts_per_hour, custom_text)."""
+    """Updates bot configuration in autoposterbot_db where id='global_settings'."""
     if not supabase:
         return updates
     try:
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
         res = (
-            supabase.table(TABLE_SETTINGS)
-            .upsert({"id": "global_settings", **updates})
+            supabase.table(TABLE_BOT)
+            .upsert({"id": "global_settings", "channel_name": "_config", **updates})
             .execute()
         )
         return res.data[0] if res.data else updates

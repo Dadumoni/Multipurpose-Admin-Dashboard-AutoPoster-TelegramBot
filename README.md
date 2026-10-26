@@ -6,9 +6,8 @@ Automated multi-channel Telegram video broadcaster engine. Posts video streams s
 
 ## 🚀 Key Features
 
-- **100% Supabase Single-Database Architecture**: Zero reliance on MongoDB.
-  - Channels & statistics stored in `autoposterbot_db`.
-  - Global bot settings (running status, posting interval, custom footer text) stored in `autoposterbot_settings`.
+- **100% Supabase Single-Database & Single-Table Architecture**: Zero reliance on MongoDB.
+  - Channels, statistics, and global bot settings stored in a single table `autoposterbot_db`.
   - Video catalog fetched directly from `viralhub_db`.
 - **Render Deployment Ready**: Built with **FastAPI** + **python-telegram-bot** + **APScheduler** in a single async process. Includes health checks (`/health`) and dynamic port binding (`$PORT`) required by Render Web Services.
 - **Remote Control REST API**: Enables the Admin Dashboard to start/stop the bot, trigger instant posts, add/remove channels, and change posting frequency remotely over HTTP.
